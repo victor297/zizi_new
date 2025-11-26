@@ -95,24 +95,22 @@ export const adsApi = createApi({
       providesTags: ["Ad"],
     }),
     getFavorites: builder.query({
-      query: () => ({
-        url: "",
-        baseUrl: `${baseurl}/api/users/favorites`,
+      query: (params) => ({
+        url: "../users/favorites",
+        params,
       }),
       providesTags: ["Favorite"],
     }),
     addToFavorites: builder.mutation({
       query: (adId) => ({
-        url: "",
-        baseUrl: `${baseurl}/api/users/favorites/${adId}`,
+        url: `../users/favorites/${adId}`,
         method: "POST",
       }),
       invalidatesTags: ["Favorite", "Ad"],
     }),
     removeFromFavorites: builder.mutation({
       query: (adId) => ({
-        url: "",
-        baseUrl: `${baseurl}/api/users/favorites/${adId}`,
+        url: `../users/favorites/${adId}`,
         method: "DELETE",
       }),
       invalidatesTags: ["Favorite", "Ad"],
