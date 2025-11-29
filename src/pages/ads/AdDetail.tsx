@@ -18,7 +18,11 @@ import {
   Briefcase,
   DollarSign,
 } from "lucide-react";
-import { useGetAdQuery } from "../../redux/api/adsApi";
+import {
+  useGetAdQuery,
+  useAddToFavoritesMutation,
+  useRemoveFromFavoritesMutation,
+} from "../../redux/api/adsApi";
 import { useCreateConversationMutation } from "../../redux/api/chatApi";
 import AdReviews from "../../components/ads/AdReviews";
 
@@ -31,6 +35,8 @@ const AdDetail = () => {
 
   const { data: adData, isLoading, error } = useGetAdQuery(id);
   const [createConversation] = useCreateConversationMutation();
+  const [addToFavorites] = useAddToFavoritesMutation();
+  const [removeFromFavorites] = useRemoveFromFavoritesMutation();
 
   // Extract data from the response
   const ad = adData?.data?.ad;
@@ -65,8 +71,8 @@ const AdDetail = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: adData.ad.title,
-          text: adData.ad.description,
+          title: adData.data?.ad.title,
+          text: adData.data?.ad.description,
           url: window.location.href,
         });
       } catch (error) {
@@ -76,6 +82,39 @@ const AdDetail = () => {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href);
       alert("Link copied to clipboard!");
+    }
+  };
+  const handleFavourite = async () => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const adId = ad?.id;
+      if (!adId) return;
+
+      await addToFavorites(adId).unwrap();
+
+      console.log("Added to favorites:", adId);
+    } catch (error) {
+      console.error("Failed to add favorite:", error);
+    }
+  };
+  const handleUnFavourite = async () => {
+    console.log("ununununu");
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const adId = ad?.id;
+      if (!adId) return;
+
+      await removeFromFavorites(adId).unwrap();
+    } catch (error) {
+      console.error("Failed to add favorite:", error);
     }
   };
 
@@ -231,12 +270,23 @@ const AdDetail = () => {
                   >
                     <Share2 size={20} />
                   </button>
-                  <button className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <Heart size={20} />
+                  <button
+                    onClick={
+                      ad?.is_favorited ? handleUnFavourite : handleFavourite
+                    }
+                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Heart
+                      size={20}
+                      className={
+                        ad?.is_favorited ? "fill-red-600 text-red-600" : ""
+                      }
+                    />
                   </button>
-                  <button className="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
+
+                  {/* <button className="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors">
                     <Flag size={20} />
-                  </button>
+                  </button> */}
                 </div>
               </div>
 

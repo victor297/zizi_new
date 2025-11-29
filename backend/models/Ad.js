@@ -571,7 +571,8 @@ export class Ad {
         COUNT(*) FILTER (WHERE is_urgent = true AND urgent_until > NOW()) as urgent_ads,
         AVG(price) as average_price,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours') as ads_today,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as ads_this_week`
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as ads_this_week
+         FROM ads`
     );
 
     return result.rows[0];

@@ -9,6 +9,95 @@ import { query } from "../config/database.js";
 
 const router = express.Router();
 
+// @desc    Update user avatar
+// @route   PUT /api/users/avatar
+// @access  Private
+router.put("/avatar", protect, uploadSingle("avatar"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image file provided",
+      });
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await uploadImage(req.file, "zizi-avatars");
+
+    // Update user avatar
+    const updatedUser = await User.update(req.user.id, {
+      avatar_url: uploadResult.url,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        avatar_url: uploadResult.url,
+      },
+      message: "Avatar updated successfully",
+    });
+  } catch (error) {
+    console.error("Update avatar error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Avatar upload failed",
+    });
+  }
+});
+// @desc    Get user's favorites
+// @route   GET /api/users/favorites
+// @access  Private
+router.get("/favorites", protect, validatePagination, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const result = await query(
+      `
+      SELECT 
+        a.*,
+        u.name as user_name,
+        u.avatar_url as user_avatar,
+        c.name as category_name,
+        f.created_at as favorited_at,
+        true as is_favorited
+      FROM favorites f
+      JOIN ads a ON f.ad_id = a.id
+      JOIN users u ON a.user_id = u.id
+      JOIN categories c ON a.category_id = c.id
+      WHERE f.user_id = $1 AND a.status = 'active'
+      ORDER BY f.created_at DESC
+      LIMIT $2 OFFSET $3
+    `,
+      [req.user.id, parseInt(limit), offset]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*) FROM favorites f
+       JOIN ads a ON f.ad_id = a.id
+       WHERE f.user_id = $1 AND a.status = 'active'`,
+      [req.user.id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        ads: result.rows,
+        total: parseInt(countResult.rows[0].count),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(countResult.rows[0].count / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    console.error("Get favorites error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
 // @desc    Get user profile
 // @route   GET /api/users/:id
 // @access  Public
@@ -105,48 +194,12 @@ router.get("/:id/ads", validateId, validatePagination, async (req, res) => {
   }
 });
 
-// @desc    Update user avatar
-// @route   PUT /api/users/avatar
-// @access  Private
-router.put("/avatar", protect, uploadSingle("avatar"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No image file provided",
-      });
-    }
-
-    // Upload to Cloudinary
-    const uploadResult = await uploadImage(req.file, "zizi-avatars");
-
-    // Update user avatar
-    const updatedUser = await User.update(req.user.id, {
-      avatar_url: uploadResult.url,
-    });
-
-    res.json({
-      success: true,
-      data: {
-        avatar_url: uploadResult.url,
-      },
-      message: "Avatar updated successfully",
-    });
-  } catch (error) {
-    console.error("Update avatar error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Avatar upload failed",
-    });
-  }
-});
-
 // @desc    Add ad to favorites
 // @route   POST /api/users/favorites/:adId
 // @access  Private
-router.post("/favorites/:adId", protect, validateId, async (req, res) => {
+router.post("/favorites/:id", protect, validateId, async (req, res) => {
   try {
-    const adId = req.params.adId;
+    const adId = req.params.id;
 
     // Check if ad exists
     const ad = await Ad.findById(adId);
@@ -192,9 +245,9 @@ router.post("/favorites/:adId", protect, validateId, async (req, res) => {
 // @desc    Remove ad from favorites
 // @route   DELETE /api/users/favorites/:adId
 // @access  Private
-router.delete("/favorites/:adId", protect, validateId, async (req, res) => {
+router.delete("/favorites/:id", protect, validateId, async (req, res) => {
   try {
-    const adId = req.params.adId;
+    const adId = req.params.id;
 
     const result = await query(
       "DELETE FROM favorites WHERE user_id = $1 AND ad_id = $2 RETURNING *",
@@ -214,60 +267,6 @@ router.delete("/favorites/:adId", protect, validateId, async (req, res) => {
     });
   } catch (error) {
     console.error("Remove from favorites error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-});
-
-// @desc    Get user's favorites
-// @route   GET /api/users/favorites
-// @access  Private
-router.get("/favorites", protect, validatePagination, async (req, res) => {
-  try {
-    const { page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-
-    const result = await query(
-      `
-      SELECT 
-        a.*,
-        u.name as user_name,
-        u.avatar_url as user_avatar,
-        c.name as category_name,
-        f.created_at as favorited_at,
-        true as is_favorited
-      FROM favorites f
-      JOIN ads a ON f.ad_id = a.id
-      JOIN users u ON a.user_id = u.id
-      JOIN categories c ON a.category_id = c.id
-      WHERE f.user_id = $1 AND a.status = 'active'
-      ORDER BY f.created_at DESC
-      LIMIT $2 OFFSET $3
-    `,
-      [req.user.id, parseInt(limit), offset]
-    );
-
-    const countResult = await query(
-      `SELECT COUNT(*) FROM favorites f
-       JOIN ads a ON f.ad_id = a.id
-       WHERE f.user_id = $1 AND a.status = 'active'`,
-      [req.user.id]
-    );
-
-    res.json({
-      success: true,
-      data: {
-        ads: result.rows,
-        total: parseInt(countResult.rows[0].count),
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(countResult.rows[0].count / parseInt(limit)),
-      },
-    });
-  } catch (error) {
-    console.error("Get favorites error:", error);
     res.status(500).json({
       success: false,
       message: "Server error",

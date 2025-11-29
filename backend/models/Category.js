@@ -207,7 +207,9 @@ export class Category {
         COUNT(*) FILTER (WHERE parent_id IS NULL) as main_categories,
         COUNT(*) FILTER (WHERE parent_id IS NOT NULL) as subcategories,
         COUNT(*) FILTER (WHERE status = 'active') as active_categories,
-        COUNT(*) FILTER (WHERE status = 'inactive') as inactive_categories`
+        COUNT(*) FILTER (WHERE status = 'inactive') as inactive_categories
+            FROM categories
+`
     );
 
     return result.rows[0];
